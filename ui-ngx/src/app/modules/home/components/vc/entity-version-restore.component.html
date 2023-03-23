@@ -21,7 +21,7 @@
     <h2>{{ 'version-control.restore-entity-from-version' | translate: {versionName} }}</h2>
     <span fxFlex></span>
   </mat-toolbar>
-  <mat-progress-bar color="warn" style="z-index: 10; width: 100%; margin-bottom: -4px;" mode="indeterminate"
+  <mat-progress-bar style="z-index: 10; width: 100%; margin-bottom: -4px;" mode="indeterminate"
                     *ngIf="entityDataInfo && (isLoading$ | async)">
   </mat-progress-bar>
   <mat-spinner *ngIf="!entityDataInfo" mode="indeterminate" diameter="80"></mat-spinner>

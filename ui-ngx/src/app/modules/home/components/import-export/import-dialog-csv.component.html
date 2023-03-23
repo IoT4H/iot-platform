@@ -27,7 +27,7 @@
       <mat-icon class="material-icons">close</mat-icon>
     </button>
   </mat-toolbar>
-  <mat-progress-bar color="warn" mode="indeterminate" *ngIf="isLoading$ | async">
+  <mat-progress-bar mode="indeterminate" *ngIf="isLoading$ | async">
   </mat-progress-bar>
   <div mat-dialog-content>
     <mat-vertical-stepper [linear]="true" [selectedIndex]="selectedIndex" #importStepper>
@@ -113,7 +113,7 @@
       </mat-step>
       <mat-step>
         <ng-template matStepLabel>{{ 'import.stepper-text.creat-entities' | translate }}</ng-template>
-        <mat-progress-bar color="warn" class="tb-import-progress" mode="indeterminate">
+        <mat-progress-bar class="tb-import-progress" mode="indeterminate">
         </mat-progress-bar>
       </mat-step>
       <mat-step>
