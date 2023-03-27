@@ -36,7 +36,7 @@
         <main.dir>${basedir}/../..</main.dir>
         <pkg.name>tb-web-ui</pkg.name>
         <pkg.type>js</pkg.type>
-        <docker.name>tb-web-ui</docker.name>
+        <docker.name>iot4h-web-ui</docker.name>
         <pkg.name>tb-web-ui</pkg.name>
         <pkg.type>js</pkg.type>
         <pkg.disabled>false</pkg.disabled>
