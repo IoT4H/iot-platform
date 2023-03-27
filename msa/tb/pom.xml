@@ -36,7 +36,7 @@
         <main.dir>${basedir}/../..</main.dir>
         <pkg.name>thingsboard</pkg.name>
         <tb-postgres.docker.name>iot4h-platform</tb-postgres.docker.name>
-        <tb-cassandra.docker.name>tb-cassandra</tb-cassandra.docker.name>
+        <tb-cassandra.docker.name>iot4h-cassandra</tb-cassandra.docker.name>
         <pkg.installFolder>/usr/share/${pkg.name}</pkg.installFolder>
         <pkg.upgradeVersion>3.4.2</pkg.upgradeVersion>
     </properties>
