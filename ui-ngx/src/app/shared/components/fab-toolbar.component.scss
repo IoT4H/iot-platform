@@ -74,7 +74,7 @@ mat-fab-toolbar {
     button.mat-mdc-fab {
       overflow: visible !important;
       opacity: .5;
-      .mat-icon {
+      mat-icon {
         position: relative;
         z-index: $z-index-fab + 2;
         opacity: 1;
@@ -144,11 +144,7 @@ mat-fab-toolbar {
   &.mat-is-open {
     mat-fab-trigger > button.mat-mdc-fab {
       box-shadow: none;
-      opacity: 1;
-
-      .mat-icon {
-        opacity: 0;
-      }
+      opacity: 0;
     }
 
     .mat-toolbar.mat-toolbar-single-row {
@@ -163,7 +159,7 @@ mat-fab-toolbar {
     mat-fab-trigger {
       button.mat-mdc-fab {
         transition: opacity .3s cubic-bezier(.55, 0, .55, .2) .2s;
-        .mat-icon {
+        mat-icon {
           transition: all $icon-delay ease-in;
         }
       }
