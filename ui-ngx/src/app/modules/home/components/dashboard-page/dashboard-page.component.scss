@@ -29,7 +29,7 @@ tb-dashboard-page {
 div.tb-dashboard-page {
   &.mat-content {
     overflow: hidden;
-    background-color: #eee;
+    background-color: var(--primary-color);
   }
   section.tb-dashboard-title {
     position: relative;
