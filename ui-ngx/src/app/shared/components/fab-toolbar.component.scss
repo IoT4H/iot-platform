@@ -147,13 +147,10 @@ mat-fab-toolbar {
   }
 
   &.mat-is-open {
+
     mat-fab-trigger > button {
       box-shadow: none;
-      opacity: 1;
-
-      mat-icon {
-        opacity: 0;
-      }
+      opacity: 0;
     }
 
     .mat-fab-action-item {
