@@ -328,4 +328,8 @@ $tb-dark-theme: map_merge($tb-dark-theme, $color);
 
 .tb-main-content {
   @include mat.all-component-themes($tb-alt-theme);
+  @include mat-datetimepicker-theme($tb-alt-theme);
+  @include tb-components-theme($tb-alt-theme);
+  @include overwrites.theme-overwrites($tb-alt-primary, $tb-alt-theme);
+  @include mat.typography-hierarchy($tb-alt-theme);
 }
