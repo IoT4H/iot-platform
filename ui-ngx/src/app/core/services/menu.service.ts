@@ -72,12 +72,43 @@ export class MenuService {
               homeSections = this.buildCustomerUserHome(authState);
               break;
           }
+          this.filterMenuSections();
           this.updateOpenedMenuSections();
           this.menuSections$.next(this.currentMenuSections);
           this.homeSections$.next(homeSections);
         }
       }
     );
+  }
+
+  private filterMenuSections() {
+
+
+    //List of IDs that must be filtered out. Effects side menu, tab navigation and widget link list.
+    const filterList = [
+      'features',
+      'otaUpdates',
+      'version_control',
+      'edge_management',
+      'widget_library',
+      'api_usage',
+      'audit_log',
+      'entity_views',
+    ];
+
+    const filterSections = (section) => {
+      return !filterList.includes(section.id)
+    };
+
+    const filterPages = (section) => {
+      let sec = section;
+      sec.pages = section.pages && section.pages.filter(filterSections);
+      sec.pages = sec.pages && sec.pages.map(filterPages)
+      return sec;
+    };
+
+    this.currentMenuSections = this.currentMenuSections.filter(filterSections).map(filterPages);
+
   }
 
   private updateOpenedMenuSections() {
