@@ -21,6 +21,13 @@
 @include mat.all-component-typographies();
 @include mat.core();
 
+$tb-primary-color: #333333;
+$tb-alt-primary-color: #ed7d31;
+$tb-secondary-color: #73807E;
+$tb-hue3-color: #a7c1de;
+
+$tb-dark-primary-color: #9fa8da;
+
 $tb-mat-indigo: (
   50: #e8eaf6,
   100: #c5cae9,
@@ -54,7 +61,41 @@ $tb-mat-indigo: (
   )
 );
 
+$tb-alt-color: (
+  50: #e8eaf6,
+  100: #c5cae9,
+  200: #9fa8da,
+  300: #7986cb,
+  400: #5c6bc0,
+  500: $tb-alt-primary-color,
+  600: $tb-secondary-color,
+  700: #303f9f,
+  800: #283593,
+  900: #1a237e,
+  A100: $tb-hue3-color,
+  A200: #536dfe,
+  A400: #3d5afe,
+  A700: #304ffe,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: white,
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: white,
+    A400: white,
+    A700: white,
+  )
+);
+
 $tb-primary: mat.define-palette($tb-mat-indigo);
+$tb-alt-primary: mat.define-palette($tb-alt-color);
 $tb-accent: mat.define-palette(mat.$deep-orange-palette);
 
 $background: (background: map_get(mat.$grey-palette, 200));
@@ -72,13 +113,31 @@ $tb-mat-theme: mat.define-light-theme((
   density: 0
 ));
 
+$tb-alt-mat-theme: mat.define-light-theme((
+  color: (
+    primary: $tb-alt-primary,
+    accent: $tb-accent
+  ),
+  typography: mat.define-typography-config(
+    $button: mat.define-typography-level(14px, 36px, 500, $letter-spacing: 0.03125em)
+  ),
+  density: 0
+));
+
 $color: map_get($tb-mat-theme, color);
 $color: map_merge($color, (background: $tb-theme-background));
 $tb-mat-theme: map_merge($tb-mat-theme, (color: $color));
 $tb-theme: map_merge($tb-mat-theme, $color);
 
+
+$alt-color: map_get($tb-alt-mat-theme, color);
+$alt-color: map_merge($alt-color, (background: $tb-theme-background));
+$tb-alt-mat-theme: map_merge($tb-alt-mat-theme, (color: $alt-color));
+$tb-alt-theme: map_merge($tb-alt-mat-theme, $color);
+
+
 $primary: mat.get-color-from-palette($tb-primary);
-$accent: mat.get-color-from-palette($tb-accent);
+$accent: #ed7d31;
 
 $tb-dark-mat-indigo: (
   50: #e8eaf6,
@@ -174,7 +233,7 @@ $tb-dark-theme: map_merge($tb-dark-theme, $color);
     &.mat-warn {
       .mat-fab-toolbar-background {
         background: mat.get-color-from-palette($warn);
-        color: mat.get-color-from-palette($warn, default-contrast);
+        color: #ed7d31;
       }
     }
   }
@@ -206,7 +265,7 @@ $tb-dark-theme: map_merge($tb-dark-theme, $color);
       &.mat-primary {
         @include _mat-toolbar-inverse-color($primary);
         button.mat-mdc-icon-button {
-          .mat-icon {
+          mat-icon {
             color: mat.get-color-from-palette($primary);
           }
         }
@@ -265,4 +324,8 @@ $tb-dark-theme: map_merge($tb-dark-theme, $color);
 
 .tb-dark {
   @include mat.all-component-colors($tb-dark-theme);
+}
+
+.tb-main-content {
+  @include mat.all-component-themes($tb-alt-theme);
 }
