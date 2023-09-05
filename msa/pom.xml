@@ -43,12 +43,12 @@
         <!--Modules order is important to speedup parallel build and avoid yarn pgk parallel execution-->
         <module>tb</module>
         <module>web-ui</module>
-        <module>vc-executor</module>
+        <!--<module>vc-executor</module>
         <module>vc-executor-docker</module>
         <module>tb-node</module>
         <module>transport</module>
         <module>js-executor</module>
-        <module>monitoring</module>
+        <module>monitoring</module>-->
     </modules>
 
     <profiles>
