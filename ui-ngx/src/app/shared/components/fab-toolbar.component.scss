@@ -125,7 +125,9 @@ mat-fab-toolbar {
 
   .mat-toolbar.mat-toolbar-single-row {
     padding: 0 !important;
-    background-color: transparent !important;
+    /*
+    background-color: transparent;
+    */
     pointer-events: none;
     position: relative;
     z-index: $z-index-fab + 3;
