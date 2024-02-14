@@ -16,6 +16,7 @@
 
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LoginPortalComponent } from '@modules/login/pages/login-portal/login-portal.component';
 
 import { LoginRoutingModule } from './login-routing.module';
 import { LoginComponent } from './pages/login/login.component';
@@ -28,6 +29,7 @@ import { TwoFactorAuthLoginComponent } from '@modules/login/pages/login/two-fact
 @NgModule({
   declarations: [
     LoginComponent,
+    LoginPortalComponent,
     ResetPasswordRequestComponent,
     ResetPasswordComponent,
     CreatePasswordComponent,
