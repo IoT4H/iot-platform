@@ -29,4 +29,4 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
       - name: Build with Maven
-        run: mvn clean install -T 1C -DskipTests -Ddockerfile.skip=false -Dlicense.skip -P push-docker-amd-arm-images
+        run: mvn clean install -T 1C -DskipTests -Ddockerfile.skip=false -Dlicense.skip -P push-docker-amd-arm-images -e -X
