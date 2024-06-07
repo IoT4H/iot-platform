@@ -24,10 +24,10 @@ import { PageComponent } from '@shared/components/page.component';
 import { OAuth2ClientInfo } from '@shared/models/oauth2.models';
 
 
-const IFRAME_LOGIN_READY = "iframeReady";
-const PARENT_LOGIN_READY = "parentReady";
-const REQUEST_LOGIN_TOKEN = "requestLoginToken";
-const SENDING_LOGIN_TOKEN = "sendingLoginToken";
+const IFRAME_LOGIN_READY = 'iframeReady';
+const PARENT_LOGIN_READY = 'parentReady';
+const REQUEST_LOGIN_TOKEN = 'requestLoginToken';
+const SENDING_LOGIN_TOKEN = 'sendingLoginToken';
 
 @Component({
   selector: 'tb-login',
@@ -45,13 +45,13 @@ export class LoginPortalComponent extends PageComponent implements OnInit {
               private activatedRoute: ActivatedRoute) {
     super(store);
     this.activatedRoute.queryParamMap.subscribe((params) => {
-      this.authService.redirectUrl = params.get("redirectUri");
+      this.authService.redirectUrl = params.get('redirectUri');
     });
   }
 
-  state = "connecting";
+  state = 'connecting';
 
-  userInfo = "";
+  userInfo = '';
 
 
   ngOnInit() {
@@ -64,9 +64,9 @@ export class LoginPortalComponent extends PageComponent implements OnInit {
     window.addEventListener('message', (message) => {
 
 
-      if(this.state === "waitingForToken" && message.data.login) {
-        this.state = "loggingIn";
-        console.log(message.data)
+      if(this.state === 'waitingForToken' && message.data.login) {
+        this.state = 'loggingIn';
+        console.log(message.data);
         this.userInfo = JSON.stringify(message.data);
         this.authService.setUserFromJwtToken(message.data.login.token, message.data.login.refreshToken, true)
           .subscribe((value) => {
@@ -74,18 +74,18 @@ export class LoginPortalComponent extends PageComponent implements OnInit {
             } else {
               location.reload();
             }
-          })
+          });
       }
 
       if(message.data === SENDING_LOGIN_TOKEN) {
-        this.state = "waitingForToken";
+        this.state = 'waitingForToken';
         console.warn(message.data);
       }
 
       if(message.data === PARENT_LOGIN_READY) {
-        this.state = "connected";
+        this.state = 'connected';
         console.warn(message.data);
-        window.parent.postMessage(REQUEST_LOGIN_TOKEN, "http://localhost:3000");
+        window.parent.postMessage(REQUEST_LOGIN_TOKEN, '*');
 
       }
 
@@ -93,12 +93,12 @@ export class LoginPortalComponent extends PageComponent implements OnInit {
     });
 
     const interval = setInterval(() => {
-      if(this.state === "connecting") {
-        window.parent.postMessage(IFRAME_LOGIN_READY, "http://localhost:3000");
+      if(this.state === 'connecting') {
+        window.parent.postMessage(IFRAME_LOGIN_READY, '*');
       } else {
         clearInterval(interval);
       }
-    }, 2000)
+    }, 2000);
 
   }
 /*
@@ -125,9 +125,9 @@ export class LoginPortalComponent extends PageComponent implements OnInit {
   }*/
 
   getOAuth2Uri(oauth2Client: OAuth2ClientInfo): string {
-    let result = "";
+    let result = '';
     if (this.authService.redirectUrl) {
-      result += "?prevUri=" + this.authService.redirectUrl;
+      result += '?prevUri=' + this.authService.redirectUrl;
     }
     return oauth2Client.url + result;
   }
