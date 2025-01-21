@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2024 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import org.thingsboard.server.common.data.id.NotificationId;
 import org.thingsboard.server.common.data.id.NotificationRequestId;
 import org.thingsboard.server.common.data.id.UserId;
 import org.thingsboard.server.common.data.notification.Notification;
+import org.thingsboard.server.common.data.notification.NotificationDeliveryMethod;
 import org.thingsboard.server.common.data.notification.NotificationStatus;
 import org.thingsboard.server.common.data.notification.NotificationType;
 import org.thingsboard.server.common.data.notification.info.NotificationInfo;
@@ -56,6 +57,10 @@ public class NotificationEntity extends BaseSqlEntity<Notification> {
     @Column(name = ModelConstants.NOTIFICATION_TYPE_PROPERTY, nullable = false)
     private NotificationType type;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = ModelConstants.NOTIFICATION_DELIVERY_METHOD_PROPERTY, nullable = false)
+    private NotificationDeliveryMethod deliveryMethod;
+
     @Column(name = ModelConstants.NOTIFICATION_SUBJECT_PROPERTY)
     private String subject;
 
@@ -82,6 +87,7 @@ public class NotificationEntity extends BaseSqlEntity<Notification> {
         setRequestId(getUuid(notification.getRequestId()));
         setRecipientId(getUuid(notification.getRecipientId()));
         setType(notification.getType());
+        setDeliveryMethod(notification.getDeliveryMethod());
         setSubject(notification.getSubject());
         setText(notification.getText());
         setAdditionalConfig(notification.getAdditionalConfig());
@@ -97,6 +103,7 @@ public class NotificationEntity extends BaseSqlEntity<Notification> {
         notification.setRequestId(getEntityId(requestId, NotificationRequestId::new));
         notification.setRecipientId(getEntityId(recipientId, UserId::new));
         notification.setType(type);
+        notification.setDeliveryMethod(deliveryMethod);
         notification.setSubject(subject);
         notification.setText(text);
         notification.setAdditionalConfig(additionalConfig);

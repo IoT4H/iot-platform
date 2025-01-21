@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2024 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,7 +135,7 @@ public class BaseAlarmService extends AbstractCachedEntityService<TenantId, Page
         }
         if (result.getAlarm() != null) {
             eventPublisher.publishEvent(SaveEntityEvent.builder().tenantId(result.getAlarm().getTenantId())
-                    .entityId(result.getAlarm().getId()).added(true).build());
+                    .entityId(result.getAlarm().getId()).entity(result).created(true).build());
             publishEvictEvent(new AlarmTypesCacheEvictEvent(request.getTenantId()));
         }
         return withPropagated(result);
@@ -304,6 +304,12 @@ public class BaseAlarmService extends AbstractCachedEntityService<TenantId, Page
         log.trace("[{}] Executing findAlarmIdsByAssigneeId [{}]", tenantId, userId);
         validateId(userId, "Incorrect userId " + userId);
         return alarmDao.findAlarmIdsByAssigneeId(tenantId, userId.getId(), pageLink);
+    }
+
+    @Override
+    public PageData<AlarmId> findAlarmIdsByOriginatorId(TenantId tenantId, EntityId originatorId, PageLink pageLink) {
+        log.trace("[{}] Executing findAlarmsByOriginatorId [{}]", tenantId, originatorId);
+        return alarmDao.findAlarmIdsByOriginatorId(tenantId, originatorId, pageLink);
     }
 
     @Override
