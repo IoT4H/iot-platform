@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2024 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -229,6 +229,10 @@ public class JacksonUtil {
             }
         }
         return node;
+    }
+
+    public static ObjectNode asObject(JsonNode node) {
+        return node != null && node.isObject() ? ((ObjectNode) node) : newObjectNode();
     }
 
     public static void replaceUuidsRecursively(JsonNode node, Set<String> skippedRootFields, Pattern includedFieldsPattern, UnaryOperator<UUID> replacer, boolean root) {

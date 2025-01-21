@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2024 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +78,24 @@ public class TenantMsgConstructorV1 implements TenantMsgConstructor {
 
     @Override
     public TenantProfileUpdateMsg constructTenantProfileUpdateMsg(UpdateMsgType msgType, TenantProfile tenantProfile, EdgeVersion edgeVersion) {
+        tenantProfile = JacksonUtil.clone(tenantProfile);
+        // clear all config
+        var tenantProfileData = tenantProfile.getProfileData();
+        var configuration = tenantProfile.getDefaultProfileConfiguration();
+        configuration.setRpcTtlDays(0);
+        configuration.setMaxJSExecutions(0);
+        configuration.setMaxREExecutions(0);
+        configuration.setMaxDPStorageDays(0);
+        configuration.setMaxTbelExecutions(0);
+        configuration.setQueueStatsTtlDays(0);
+        configuration.setMaxTransportMessages(0);
+        configuration.setDefaultStorageTtlDays(0);
+        configuration.setMaxTransportDataPoints(0);
+        configuration.setRuleEngineExceptionsTtlDays(0);
+        configuration.setMaxRuleNodeExecutionsPerMessage(0);
+        tenantProfileData.setConfiguration(configuration);
+        tenantProfile.setProfileData(tenantProfileData);
+
         ByteString profileData = EdgeVersionUtils.isEdgeVersionOlderThan(edgeVersion, EdgeVersion.V_3_6_2) ?
                 ByteString.empty() : ByteString.copyFrom(dataDecodingEncodingService.encode(tenantProfile.getProfileData()));
         TenantProfileUpdateMsg.Builder builder = TenantProfileUpdateMsg.newBuilder()
@@ -93,4 +111,5 @@ public class TenantMsgConstructorV1 implements TenantMsgConstructor {
         }
         return builder.build();
     }
+
 }
