@@ -72,7 +72,7 @@ export class MenuService {
               homeSections = this.buildCustomerUserHome(authState);
               break;
           }
-          this.filterMenuSections();
+          //this.filterMenuSections();
           this.updateOpenedMenuSections();
           this.menuSections$.next(this.currentMenuSections);
           this.homeSections$.next(homeSections);
@@ -90,7 +90,6 @@ export class MenuService {
       'otaUpdates',
       'version_control',
       'edge_management',
-      'widget_library',
       'api_usage',
       'audit_log',
       'entity_views',
