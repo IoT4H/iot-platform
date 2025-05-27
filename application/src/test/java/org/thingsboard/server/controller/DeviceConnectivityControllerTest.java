@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.thingsboard.common.util.JacksonUtil;
@@ -94,6 +95,9 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
     private DeviceProfileId mqttDeviceProfileId;
     private DeviceProfileId coapDeviceProfileId;
 
+    @Value("${device.connectivity.gateway.image_version:3.7-stable}")
+    private String gatewayImageVersion;
+
     @Before
     public void beforeTest() throws Exception {
         loginSysAdmin();
@@ -142,7 +146,7 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
 
         Tenant tenant = new Tenant();
         tenant.setTitle("My tenant");
-        savedTenant = doPost("/api/tenant", tenant, Tenant.class);
+        savedTenant = saveTenant(tenant);
         Assert.assertNotNull(savedTenant);
 
         tenantAdmin = new User();
@@ -187,8 +191,7 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
     public void afterTest() throws Exception {
         loginSysAdmin();
 
-        doDelete("/api/tenant/" + savedTenant.getId().getId())
-                .andExpect(status().isOk());
+        deleteTenant(savedTenant.getId());
     }
 
     @Test
@@ -232,16 +235,19 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                 credentials.getCredentialsId()));
 
         JsonNode linuxCoapCommands = commands.get(COAP);
-        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://localhost:5683/api/v1/%s/telemetry " +
-                "-t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(linuxCoapCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://localhost:5684/api/v1/%s/telemetry" +
-                " -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST " +
+                "-t \"application/json\" -e \"{temperature:25}\" coap://localhost:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
+
+        assertThat(linuxCoapCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST " +
+                "-R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://localhost:5684/api/v1/%s/telemetry", credentials.getCredentialsId()));
 
         JsonNode dockerCoapCommands = commands.get(COAP).get(DOCKER);
         assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway" +
-                " thingsboard/coap-clients coap-client -v 6 -m POST coap://host.docker.internal:5683/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://host.docker.internal:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
         assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway" +
-                " thingsboard/coap-clients coap-client-openssl -v 6 -m POST coaps://host.docker.internal:5684/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients " +
+                "/bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download && " +
+                "coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://host.docker.internal:5684/api/v1/%s/telemetry\"", credentials.getCredentialsId()));
     }
 
     @Test
@@ -296,7 +302,7 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                 "services:\n" +
                 "  # ThingsBoard IoT Gateway Service Configuration\n" +
                 "  tb-gateway:\n" +
-                "    image: thingsboard/tb-gateway\n" +
+                "    image: thingsboard/tb-gateway:" + gatewayImageVersion + "\n" +
                 "    container_name: tb-gateway\n" +
                 "    restart: always\n" +
                 "\n" +
@@ -377,16 +383,19 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                 credentials.getCredentialsId()));
 
         JsonNode linuxCoapCommands = commands.get(COAP);
-        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://[::1]:5683/api/v1/%s/telemetry " +
-                "-t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(linuxCoapCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://[::1]:5684/api/v1/%s/telemetry" +
-                " -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST " +
+                "-t \"application/json\" -e \"{temperature:25}\" coap://[::1]:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAPS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download");
+        assertThat(linuxCoapCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST " +
+                "-R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://[::1]:5684/api/v1/%s/telemetry", credentials.getCredentialsId()));
 
         JsonNode dockerCoapCommands = commands.get(COAP).get(DOCKER);
         assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway" +
-                " thingsboard/coap-clients coap-client -v 6 -m POST coap://host.docker.internal:5683/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://host.docker.internal:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
         assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway" +
-                " thingsboard/coap-clients coap-client-openssl -v 6 -m POST coaps://host.docker.internal:5684/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients " +
+                "/bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download && " +
+                "coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://host.docker.internal:5684/api/v1/%s/telemetry\"", credentials.getCredentialsId()));
     }
 
     @Test
@@ -431,16 +440,19 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                 credentials.getCredentialsId()));
 
         JsonNode linuxCoapCommands = commands.get(COAP);
-        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://[1:1:1:1:1:1:1:1]:5683/api/v1/%s/telemetry " +
-                "-t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(linuxCoapCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://[1:1:1:1:1:1:1:1]:5684/api/v1/%s/telemetry" +
-                " -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST " +
+                "-t \"application/json\" -e \"{temperature:25}\" coap://[1:1:1:1:1:1:1:1]:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAPS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download");
+        assertThat(linuxCoapCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM +
+                " -t \"application/json\" -e \"{temperature:25}\" coaps://[1:1:1:1:1:1:1:1]:5684/api/v1/%s/telemetry", credentials.getCredentialsId()));
 
         JsonNode dockerCoapCommands = commands.get(COAP).get(DOCKER);
         assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it" +
-                " thingsboard/coap-clients coap-client -v 6 -m POST coap://[1:1:1:1:1:1:1:1]:5683/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://[1:1:1:1:1:1:1:1]:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
         assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it" +
-                " thingsboard/coap-clients coap-client-openssl -v 6 -m POST coaps://[1:1:1:1:1:1:1:1]:5684/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients " +
+                "/bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download && " +
+                "coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://[1:1:1:1:1:1:1:1]:5684/api/v1/%s/telemetry\"", credentials.getCredentialsId()));
 
     }
 
@@ -463,8 +475,7 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
         basicMqttCredentials.setUserName(userName);
         basicMqttCredentials.setPassword(password);
         credentials.setCredentialsValue(JacksonUtil.toString(basicMqttCredentials));
-        doPost("/api/device/credentials", credentials)
-                .andExpect(status().isOk());
+        credentials = doPost("/api/device/credentials", credentials, DeviceCredentials.class);
 
         JsonNode commands =
                 doGetTyped("/api/device-connectivity/" + savedDevice.getId().getId(), new TypeReference<>() {
@@ -486,6 +497,33 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                         "/bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/mqtts/certificate/download && " +
                         "mosquitto_pub -d -q 1 --cafile " + CA_ROOT_CERT_PEM + " -h host.docker.internal -p 8883 -t %s -i \"%s\" -u \"%s\" -P \"%s\" -m \"{temperature:25}\"\"",
                 DEVICE_TELEMETRY_TOPIC, clientId, userName, password));
+
+        basicMqttCredentials.setClientId("");
+        credentials.setCredentialsValue(JacksonUtil.toString(basicMqttCredentials));
+
+        doPost("/api/device/credentials", credentials)
+                .andExpect(status().isOk());
+
+        commands =
+                doGetTyped("/api/device-connectivity/" + savedDevice.getId().getId(), new TypeReference<>() {
+                });
+        assertThat(commands).hasSize(1);
+
+        mqttCommands = commands.get(MQTT);
+        assertThat(mqttCommands.get(MQTT).asText()).isEqualTo(String.format("mosquitto_pub -d -q 1 -h localhost -p 1883 -t %s " +
+                "-u \"%s\" -P \"%s\" -m \"{temperature:25}\"", DEVICE_TELEMETRY_TOPIC, userName, password));
+        assertThat(mqttCommands.get(MQTTS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/mqtts/certificate/download");
+        assertThat(mqttCommands.get(MQTTS).get(1).asText()).isEqualTo(String.format("mosquitto_pub -d -q 1 --cafile " + CA_ROOT_CERT_PEM + " -h localhost -p 8883 " +
+                "-t %s -u \"%s\" -P \"%s\" -m \"{temperature:25}\"", DEVICE_TELEMETRY_TOPIC, userName, password));
+
+        dockerMqttCommands = commands.get(MQTT).get(DOCKER);
+        assertThat(dockerMqttCommands.get(MQTT).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway thingsboard/mosquitto-clients mosquitto_pub -d -q 1 -h host.docker.internal" +
+                        " -p 1883 -t %s -u \"%s\" -P \"%s\" -m \"{temperature:25}\"",
+                DEVICE_TELEMETRY_TOPIC, userName, password));
+        assertThat(dockerMqttCommands.get(MQTTS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway thingsboard/mosquitto-clients " +
+                        "/bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/mqtts/certificate/download && " +
+                        "mosquitto_pub -d -q 1 --cafile " + CA_ROOT_CERT_PEM + " -h host.docker.internal -p 8883 -t %s -u \"%s\" -P \"%s\" -m \"{temperature:25}\"\"",
+                DEVICE_TELEMETRY_TOPIC, userName, password));
     }
 
     @Test
@@ -527,9 +565,10 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
         assertThat(commands).hasSize(1);
 
         JsonNode linuxCommands = commands.get(COAP);
-        assertThat(linuxCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://localhost:5683/api/v1/%s/telemetry -t json -e \"{temperature:25}\"",
+        assertThat(linuxCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://localhost:5683/api/v1/%s/telemetry",
                 credentials.getCredentialsId()));
-        assertThat(linuxCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://localhost:5684/api/v1/%s/telemetry -t json -e \"{temperature:25}\"",
+        assertThat(linuxCommands.get(COAPS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download");
+        assertThat(linuxCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://localhost:5684/api/v1/%s/telemetry",
                 credentials.getCredentialsId()));
     }
 
@@ -747,16 +786,18 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                 "mosquitto_pub -d -q 1 --cafile " + CA_ROOT_CERT_PEM + " -h host.docker.internal -t v1/devices/me/telemetry -u \"%s\" -m \"{temperature:25}\"\"", credentials.getCredentialsId()));
 
         JsonNode linuxCoapCommands = commands.get(COAP);
-        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://localhost/api/v1/%s/telemetry " +
-                "-t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(linuxCoapCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://localhost/api/v1/%s/telemetry" +
-                " -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST " +
+                "-t \"application/json\" -e \"{temperature:25}\" coap://localhost/api/v1/%s/telemetry", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAPS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download");
+        assertThat(linuxCoapCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST " +
+                "-R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://localhost/api/v1/%s/telemetry", credentials.getCredentialsId()));
 
         JsonNode dockerCoapCommands = commands.get(COAP).get(DOCKER);
         assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway" +
-                " thingsboard/coap-clients coap-client -v 6 -m POST coap://host.docker.internal/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://host.docker.internal/api/v1/%s/telemetry", credentials.getCredentialsId()));
         assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway" +
-                " thingsboard/coap-clients coap-client-openssl -v 6 -m POST coaps://host.docker.internal/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                " thingsboard/coap-clients /bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download && " +
+                "coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://host.docker.internal/api/v1/%s/telemetry\"", credentials.getCredentialsId()));
     }
 
     @Test
@@ -806,16 +847,18 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
                 credentials.getCredentialsId()));
 
         JsonNode linuxCoapCommands = commands.get(COAP);
-        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://test.domain:5683/api/v1/%s/telemetry " +
-                "-t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(linuxCoapCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://test.domain:5684/api/v1/%s/telemetry" +
-                " -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST " +
+                "-t \"application/json\" -e \"{temperature:25}\" coap://test.domain:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
+        assertThat(linuxCoapCommands.get(COAPS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download");
+        assertThat(linuxCoapCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST " +
+                "-R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://test.domain:5684/api/v1/%s/telemetry", credentials.getCredentialsId()));
 
         JsonNode dockerCoapCommands = commands.get(COAP).get(DOCKER);
         assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it " +
-                "thingsboard/coap-clients coap-client -v 6 -m POST coap://test.domain:5683/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                "thingsboard/coap-clients coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://test.domain:5683/api/v1/%s/telemetry", credentials.getCredentialsId()));
         assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it " +
-                "thingsboard/coap-clients coap-client-openssl -v 6 -m POST coaps://test.domain:5684/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+                "thingsboard/coap-clients /bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download && " +
+                "coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://test.domain:5684/api/v1/%s/telemetry\"", credentials.getCredentialsId()));
     }
 
     @Test
@@ -892,12 +935,17 @@ public class DeviceConnectivityControllerTest extends AbstractControllerTest {
         assertThat(dockerMqttCommands.get(MQTTS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway thingsboard/mosquitto-clients /bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/mqtts/certificate/download && mosquitto_pub -d -q 1 --cafile " + CA_ROOT_CERT_PEM + " -h host.docker.internal -t v1/devices/me/telemetry -u \"%s\" -m \"{temperature:25}\"\"", credentials.getCredentialsId()));
 
         JsonNode coapCommands = commands.get(COAP);
-        assertThat(coapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST coap://localhost/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(coapCommands.get(COAPS).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST coaps://localhost/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(coapCommands.get(COAP).asText()).isEqualTo(String.format("coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://localhost/api/v1/%s/telemetry", credentials.getCredentialsId()));
+        assertThat(coapCommands.get(COAPS).get(0).asText()).isEqualTo("curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download");
+        assertThat(coapCommands.get(COAPS).get(1).asText()).isEqualTo(String.format("coap-client-openssl -v 6 -m POST " +
+                "-R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://localhost/api/v1/%s/telemetry", credentials.getCredentialsId()));
 
         JsonNode dockerCoapCommands = coapCommands.get(DOCKER);
-        assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway thingsboard/coap-clients coap-client -v 6 -m POST coap://host.docker.internal/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
-        assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway thingsboard/coap-clients coap-client-openssl -v 6 -m POST coaps://host.docker.internal/api/v1/%s/telemetry -t json -e \"{temperature:25}\"", credentials.getCredentialsId()));
+        assertThat(dockerCoapCommands.get(COAP).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway " +
+                "thingsboard/coap-clients coap-client -v 6 -m POST -t \"application/json\" -e \"{temperature:25}\" coap://host.docker.internal/api/v1/%s/telemetry", credentials.getCredentialsId()));
+        assertThat(dockerCoapCommands.get(COAPS).asText()).isEqualTo(String.format("docker run --rm -it --add-host=host.docker.internal:host-gateway " +
+                "thingsboard/coap-clients /bin/sh -c \"curl -f -S -o " + CA_ROOT_CERT_PEM + " http://localhost:80/api/device-connectivity/coaps/certificate/download && " +
+                "coap-client-openssl -v 6 -m POST -R " + CA_ROOT_CERT_PEM + " -t \"application/json\" -e \"{temperature:25}\" coaps://host.docker.internal/api/v1/%s/telemetry\"", credentials.getCredentialsId()));
     }
 
 

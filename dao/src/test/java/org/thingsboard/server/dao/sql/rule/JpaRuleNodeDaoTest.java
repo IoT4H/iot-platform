@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.thingsboard.common.util.JacksonUtil;
-import org.thingsboard.server.common.data.StringUtils;
 import org.thingsboard.server.common.data.id.RuleChainId;
 import org.thingsboard.server.common.data.id.RuleNodeId;
 import org.thingsboard.server.common.data.id.TenantId;
@@ -127,20 +126,15 @@ public class JpaRuleNodeDaoTest extends AbstractJpaDaoTest {
 
     @Test
     public void testFindRuleNodeIdsByTypeAndVersionLessThan() {
+        // test - search text ignored
         PageData<RuleNodeId> ruleNodeIds = ruleNodeDao.findAllRuleNodeIdsByTypeAndVersionLessThan( "A", 1, new PageLink(10, 0, PREFIX_FOR_RULE_NODE_NAME));
-        assertEquals(20, ruleNodeIds.getTotalElements());
-        assertEquals(2, ruleNodeIds.getTotalPages());
+        assertEquals(0, ruleNodeIds.getTotalElements()); // due to DaoUtil.pageToPageData impl for Slice
+        assertEquals(0, ruleNodeIds.getTotalPages()); // due to DaoUtil.pageToPageData impl for Slice
         assertEquals(10, ruleNodeIds.getData().size());
 
         ruleNodeIds = ruleNodeDao.findAllRuleNodeIdsByTypeAndVersionLessThan( "A", 1, new PageLink(10, 0));
-        assertEquals(20, ruleNodeIds.getTotalElements());
-        assertEquals(2, ruleNodeIds.getTotalPages());
-        assertEquals(10, ruleNodeIds.getData().size());
-
-        // test - search text ignored
-        ruleNodeIds = ruleNodeDao.findAllRuleNodeIdsByTypeAndVersionLessThan( "A", 1, new PageLink(10, 0, StringUtils.randomAlphabetic(5)));
-        assertEquals(20, ruleNodeIds.getTotalElements());
-        assertEquals(2, ruleNodeIds.getTotalPages());
+        assertEquals(0, ruleNodeIds.getTotalElements()); // due to DaoUtil.pageToPageData impl for Slice
+        assertEquals(0, ruleNodeIds.getTotalPages()); // due to DaoUtil.pageToPageData impl for Slice
         assertEquals(10, ruleNodeIds.getData().size());
     }
 

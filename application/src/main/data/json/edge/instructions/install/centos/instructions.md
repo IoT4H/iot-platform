@@ -8,15 +8,15 @@ sudo yum install -y nano wget
 sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 ```
 
-#### Install Java 11 (OpenJDK)
-ThingsBoard service is running on Java 11. Follow these instructions to install OpenJDK 11:
+#### Install Java 17 (OpenJDK)
+ThingsBoard service is running on Java 17. Follow these instructions to install OpenJDK 17:
 
 ```bash
-sudo yum install java-11-openjdk
+sudo yum install java-17-openjdk
 {:copy-code}
 ```
 
-Please don't forget to configure your operating system to use OpenJDK 11 by default.
+Please don't forget to configure your operating system to use OpenJDK 17 by default.
 You can configure which version is the default using the following command:
 
 ```bash
@@ -34,7 +34,7 @@ java -version
 Expected command output is:
 
 ```text
-openjdk version "11.0.xx"
+openjdk version "17.x.xx"
 OpenJDK Runtime Environment (...)
 OpenJDK 64-Bit Server VM (build ...)
 ```
@@ -56,13 +56,13 @@ sudo yum update
 sudo yum -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 # Install packages
 sudo yum -y install epel-release yum-utils
-sudo yum-config-manager --enable pgdg15
-sudo yum install postgresql15-server postgresql15
+sudo yum-config-manager --enable pgdg16
+sudo yum install postgresql16-server postgresql16 postgresql16-contrib
 # Initialize your PostgreSQL DB
-sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
-sudo systemctl start postgresql-15
+sudo /usr/pgsql-16/bin/postgresql-16-setup initdb
+sudo systemctl start postgresql-16
 # Optional: Configure PostgreSQL to start on boot
-sudo systemctl enable --now postgresql-15
+sudo systemctl enable --now postgresql-16
 
 {:copy-code}
 ```
@@ -74,12 +74,12 @@ sudo systemctl enable --now postgresql-15
 sudo yum -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 # Install packages
 sudo dnf -qy module disable postgresql
-sudo dnf -y install postgresql15 postgresql15-server
+sudo dnf -y install postgresql16 postgresql16-server postgresql16-contrib
 # Initialize your PostgreSQL DB
-sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
-sudo systemctl start postgresql-15
+sudo /usr/pgsql-16/bin/postgresql-16-setup initdb
+sudo systemctl start postgresql-16
 # Optional: Configure PostgreSQL to start on boot
-sudo systemctl enable --now postgresql-15
+sudo systemctl enable --now postgresql-16
 
 {:copy-code}
 ```
@@ -101,7 +101,7 @@ After configuring the password, edit the pg_hba.conf to use MD5 authentication w
 Edit pg_hba.conf file:
 
 ```bash
-sudo nano /var/lib/pgsql/15/data/pg_hba.conf
+sudo nano /var/lib/pgsql/16/data/pg_hba.conf
 {:copy-code}
 ```
 
@@ -121,7 +121,7 @@ host    all             all             127.0.0.1/32            md5
 Finally, you should restart the PostgreSQL service to initialize the new configuration:
 
 ```bash
-sudo systemctl restart postgresql-15.service
+sudo systemctl restart postgresql-16.service
 {:copy-code}
 ```
 
@@ -144,14 +144,14 @@ CREATE DATABASE tb_edge;
 Download installation package:
 
 ```bash
-wget https://github.com/thingsboard/thingsboard-edge/releases/download/v${TB_EDGE_VERSION}/tb-edge-${TB_EDGE_VERSION}.rpm
+wget https://github.com/thingsboard/thingsboard-edge/releases/download/v${TB_EDGE_TAG}/tb-edge-${TB_EDGE_TAG}.rpm
 {:copy-code}
 ```
 
 Go to the download repository and install ThingsBoard Edge service:
 
 ```bash
-sudo rpm -Uvh tb-edge-${TB_EDGE_VERSION}.rpm
+sudo rpm -Uvh tb-edge-${TB_EDGE_TAG}.rpm
 {:copy-code}
 ```
 

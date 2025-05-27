@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,13 +72,13 @@ public class DeviceConnectivityUtil {
                 BasicMqttCredentials credentials = JacksonUtil.fromString(deviceCredentials.getCredentialsValue(),
                         BasicMqttCredentials.class);
                 if (credentials != null) {
-                    if (credentials.getClientId() != null) {
+                    if (StringUtils.isNotEmpty(credentials.getClientId())) {
                         command.append(" -i \"").append(credentials.getClientId()).append("\"");
                     }
-                    if (credentials.getUserName() != null) {
+                    if (StringUtils.isNotEmpty(credentials.getUserName())) {
                         command.append(" -u \"").append(credentials.getUserName()).append("\"");
                     }
-                    if (credentials.getPassword() != null) {
+                    if (StringUtils.isNotEmpty(credentials.getPassword())) {
                         command.append(" -P \"").append(credentials.getPassword()).append("\"");
                     }
                 } else {
@@ -92,15 +92,13 @@ public class DeviceConnectivityUtil {
         return command.toString();
     }
 
-    public static Resource getGatewayDockerComposeFile(String baseUrl, DeviceConnectivityInfo properties, DeviceCredentials deviceCredentials, String mqttType) throws URISyntaxException {
-        String host = getHost(baseUrl, properties, mqttType);
-
+    public static Resource getGatewayDockerComposeFile(String host, String gatewayImageVersion, DeviceCredentials deviceCredentials) {
         StringBuilder dockerComposeBuilder = new StringBuilder();
         dockerComposeBuilder.append("version: '3.4'\n");
         dockerComposeBuilder.append("services:\n");
         dockerComposeBuilder.append("  # ThingsBoard IoT Gateway Service Configuration\n");
         dockerComposeBuilder.append("  tb-gateway:\n");
-        dockerComposeBuilder.append("    image: thingsboard/tb-gateway\n");
+        dockerComposeBuilder.append("    image: thingsboard/tb-gateway:").append(gatewayImageVersion).append("\n");
         dockerComposeBuilder.append("    container_name: tb-gateway\n");
         dockerComposeBuilder.append("    restart: always\n");
         dockerComposeBuilder.append("\n");
@@ -112,12 +110,10 @@ public class DeviceConnectivityUtil {
         dockerComposeBuilder.append("#        - \"5026:5026\" # Modbus TCP connector (Modbus Slave)\n");
         dockerComposeBuilder.append("#        - \"50000:50000/tcp\" # Socket connector with type TCP\n");
         dockerComposeBuilder.append("#        - \"50000:50000/udp\" # Socket connector with type UDP\n");
-        if (isLocalhost(host)) {
-            dockerComposeBuilder.append("\n");
-            dockerComposeBuilder.append("    # Necessary mapping for Linux\n");
-            dockerComposeBuilder.append("    extra_hosts:\n");
-            dockerComposeBuilder.append("      - \"host.docker.internal:host-gateway\"\n");
-        }
+        dockerComposeBuilder.append("\n");
+        dockerComposeBuilder.append("    # Necessary mapping for Linux\n");
+        dockerComposeBuilder.append("    extra_hosts:\n");
+        dockerComposeBuilder.append("      - \"host.docker.internal:host-gateway\"\n");
         dockerComposeBuilder.append("\n");
         dockerComposeBuilder.append("    # Environment variables\n");
         dockerComposeBuilder.append("    environment:\n");
@@ -131,13 +127,13 @@ public class DeviceConnectivityUtil {
                 BasicMqttCredentials credentials = JacksonUtil.fromString(deviceCredentials.getCredentialsValue(),
                         BasicMqttCredentials.class);
                 if (credentials != null) {
-                    if (credentials.getClientId() != null) {
+                    if (StringUtils.isNotEmpty(credentials.getClientId())) {
                         dockerComposeBuilder.append("      - clientId=").append(credentials.getClientId()).append("\n");
                     }
-                    if (credentials.getUserName() != null) {
+                    if (StringUtils.isNotEmpty(credentials.getUserName())) {
                         dockerComposeBuilder.append("      - username=").append(credentials.getUserName()).append("\n");
                     }
-                    if (credentials.getPassword() != null) {
+                    if (StringUtils.isNotEmpty(credentials.getPassword())) {
                         dockerComposeBuilder.append("      - password=").append(credentials.getPassword()).append("\n");
                     }
                 }
@@ -201,19 +197,39 @@ public class DeviceConnectivityUtil {
         switch (deviceCredentials.getCredentialsType()) {
             case ACCESS_TOKEN:
                 String client = COAPS.equals(protocol) ? "coap-client-openssl" : "coap-client";
-                return String.format("%s -v 6 -m POST %s://%s%s/api/v1/%s/telemetry -t json -e %s",
-                        client, protocol, host, port, deviceCredentials.getCredentialsId(), JSON_EXAMPLE_PAYLOAD);
+                String certificate = COAPS.equals(protocol) ? " -R " + CA_ROOT_CERT_PEM : "";
+                return String.format("%s -v 6 -m POST%s -t \"application/json\" -e %s %s://%s%s/api/v1/%s/telemetry",
+                        client, certificate, JSON_EXAMPLE_PAYLOAD, protocol, host, port, deviceCredentials.getCredentialsId());
             default:
                 return null;
         }
     }
 
-    public static String getDockerCoapPublishCommand(String protocol, String host, String port, DeviceCredentials deviceCredentials) {
+    public static String getDockerCoapPublishCommand(String protocol, String baseUrl, String host, String port, DeviceCredentials deviceCredentials) {
         String coapCommand = getCoapPublishCommand(protocol, host, port, deviceCredentials);
-        if (coapCommand != null && isLocalhost(host)) {
+
+        if (coapCommand == null) {
+            return null;
+        }
+
+        StringBuilder coapDockerCommand = new StringBuilder();
+        coapDockerCommand.append(DOCKER_RUN).append(isLocalhost(host) ? ADD_DOCKER_INTERNAL_HOST : "").append(COAP_IMAGE);
+
+        if (isLocalhost(host)) {
             coapCommand = coapCommand.replace(host, HOST_DOCKER_INTERNAL);
         }
-        return coapCommand != null ? String.format("%s%s%s", DOCKER_RUN + (isLocalhost(host) ? ADD_DOCKER_INTERNAL_HOST : ""), COAP_IMAGE, coapCommand) : null;
+
+        if (COAPS.equals(protocol)) {
+            coapDockerCommand.append("/bin/sh -c \"")
+                    .append(getCurlPemCertCommand(baseUrl, protocol))
+                    .append(" && ")
+                    .append(coapCommand)
+                    .append("\"");
+        } else {
+            coapDockerCommand.append(coapCommand);
+        }
+
+        return coapDockerCommand.toString();
     }
 
     public static String getHost(String baseUrl, DeviceConnectivityInfo properties, String protocol) throws URISyntaxException {

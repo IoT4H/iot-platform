@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,12 @@
  */
 package org.thingsboard.server.queue.kafka;
 
+import jakarta.annotation.PreDestroy;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -143,18 +145,13 @@ public class TbKafkaSettings {
     @Setter
     private Map<String, List<TbProperty>> consumerPropertiesPerTopic = Collections.emptyMap();
 
-    public Properties toAdminProps() {
-        Properties props = toProps();
-        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, servers);
-        props.put(AdminClientConfig.RETRIES_CONFIG, retries);
-
-        return props;
-    }
+    private volatile AdminClient adminClient;
 
     public Properties toConsumerProps(String topic) {
         Properties props = toProps();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, servers);
         props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeoutMs);
         props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, maxPartitionFetchBytes);
         props.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, fetchMaxBytes);
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, maxPollIntervalMs);
@@ -164,9 +161,20 @@ public class TbKafkaSettings {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
 
-        consumerPropertiesPerTopic
-                .getOrDefault(topic, Collections.emptyList())
-                .forEach(kv -> props.put(kv.getKey(), kv.getValue()));
+        if (topic != null) {
+            List<TbProperty> properties = consumerPropertiesPerTopic.get(topic);
+            if (properties == null) {
+                for (Map.Entry<String, List<TbProperty>> entry : consumerPropertiesPerTopic.entrySet()) {
+                    if (topic.startsWith(entry.getKey())) {
+                        properties = entry.getValue();
+                        break;
+                    }
+                }
+            }
+            if (properties != null) {
+                properties.forEach(kv -> props.put(kv.getKey(), kv.getValue()));
+            }
+        }
         return props;
     }
 
@@ -197,8 +205,6 @@ public class TbKafkaSettings {
         }
 
         props.put(CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs);
-        props.put(CommonClientConfigs.SESSION_TIMEOUT_MS_CONFIG, sessionTimeoutMs);
-
         props.putAll(PropertyUtils.getProps(otherInline));
 
         if (other != null) {
@@ -218,6 +224,31 @@ public class TbKafkaSettings {
             props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, sslKeystoreLocation);
             props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, sslKeystorePassword);
             props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, sslKeyPassword);
+        }
+    }
+
+    public AdminClient getAdminClient() {
+        if (adminClient == null) {
+            synchronized (this) {
+                if (adminClient == null) {
+                    adminClient = AdminClient.create(toAdminProps());
+                }
+            }
+        }
+        return adminClient;
+    }
+
+    protected Properties toAdminProps() {
+        Properties props = toProps();
+        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, servers);
+        props.put(AdminClientConfig.RETRIES_CONFIG, retries);
+        return props;
+    }
+
+    @PreDestroy
+    private void destroy() {
+        if (adminClient != null) {
+            adminClient.close();
         }
     }
 

@@ -1,5 +1,5 @@
 ///
-/// Copyright © 2016-2023 The Thingsboard Authors
+/// Copyright © 2016-2025 The Thingsboard Authors
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
 /// you may not use this file except in compliance with the License.
@@ -145,7 +145,7 @@ export class EntityAliasDialogComponent extends DialogComponent<EntityAliasDialo
     if (!isEmpty(this.alias.filter?.filters)) {
       this.alias.filter.filters = this.alias.filter.filters.filter((value, index, self) =>
         self.findIndex(v => v.relationType === value.relationType && isEqual(v.entityTypes, value.entityTypes)) === index &&
-        (value.relationType || value.entityTypes.length)
+        (value.relationType || value.entityTypes?.length)
       );
     }
     if (this.alias.filter.type) {

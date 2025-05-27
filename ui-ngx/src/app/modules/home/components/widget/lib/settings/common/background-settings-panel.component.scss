@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 @import '../../../../../../../../scss/constants';
 
 .tb-background-settings-panel {
   width: 620px;
+  min-height: 300px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -67,6 +68,14 @@
     bottom: 7.998px;
     left: 7.998px;
     right: 7.998px;
+  }
+  .tb-background-settings-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: auto;
+    margin: -10px;
+    padding: 10px;
   }
   .tb-background-settings-panel-buttons {
     height: 40px;

@@ -1,5 +1,5 @@
 ///
-/// Copyright © 2016-2023 The Thingsboard Authors
+/// Copyright © 2016-2025 The Thingsboard Authors
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
 /// you may not use this file except in compliance with the License.
@@ -14,12 +14,18 @@
 /// limitations under the License.
 ///
 
-import { AfterViewInit, Component, ElementRef, forwardRef, Input, OnInit, ViewChild } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR, UntypedFormBuilder, UntypedFormGroup } from '@angular/forms';
+import { Component, ElementRef, forwardRef, Input, OnInit, ViewChild } from '@angular/core';
+import {
+  ControlValueAccessor,
+  NG_VALUE_ACCESSOR,
+  UntypedFormBuilder,
+  UntypedFormGroup,
+  Validators
+} from '@angular/forms';
 import { Observable, of } from 'rxjs';
 import { PageLink } from '@shared/models/page/page-link';
 import { Direction } from '@shared/models/page/sort-order';
-import { catchError, debounceTime, distinctUntilChanged, map, share, switchMap, tap } from 'rxjs/operators';
+import { catchError, debounceTime, map, share, switchMap, tap } from 'rxjs/operators';
 import { emptyPageData, PageData } from '@shared/models/page/page-data';
 import { DashboardInfo } from '@app/shared/models/dashboard.models';
 import { DashboardService } from '@core/http/dashboard.service';
@@ -28,11 +34,12 @@ import { AppState } from '@app/core/core.state';
 import { getCurrentAuthUser } from '@app/core/auth/auth.selectors';
 import { Authority } from '@shared/models/authority.enum';
 import { TranslateService } from '@ngx-translate/core';
-import { coerceBooleanProperty } from '@angular/cdk/coercion';
 import { FloatLabelType, MatFormFieldAppearance, SubscriptSizing } from '@angular/material/form-field';
 import { getEntityDetailsPageURL } from '@core/utils';
 import { EntityType } from '@shared/models/entity-type.models';
 import { AuthUser } from '@shared/models/user.model';
+import { coerceBoolean } from '@shared/decorators/coercion';
+import { MatAutocompleteTrigger } from '@angular/material/autocomplete';
 
 @Component({
   selector: 'tb-dashboard-autocomplete',
@@ -44,7 +51,7 @@ import { AuthUser } from '@shared/models/user.model';
     multi: true
   }]
 })
-export class DashboardAutocompleteComponent implements ControlValueAccessor, OnInit, AfterViewInit {
+export class DashboardAutocompleteComponent implements ControlValueAccessor, OnInit {
 
   private dirty = false;
 
@@ -82,19 +89,22 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
   @Input()
   subscriptSizing: SubscriptSizing = 'fixed';
 
-  private requiredValue: boolean;
-  get required(): boolean {
-    return this.requiredValue;
-  }
   @Input()
-  set required(value: boolean) {
-    this.requiredValue = coerceBooleanProperty(value);
-  }
+  @coerceBoolean()
+  inlineField: boolean;
+
+  @Input()
+  requiredText: string;
+
+  @Input()
+  @coerceBoolean()
+  required: boolean;
 
   @Input()
   disabled: boolean;
 
   @ViewChild('dashboardInput', {static: true}) dashboardInput: ElementRef;
+  @ViewChild('dashboardInput', {read: MatAutocompleteTrigger, static: true}) dashboardAutocomplete: MatAutocompleteTrigger;
 
   filteredDashboards: Observable<Array<DashboardInfo>>;
 
@@ -106,7 +116,7 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
 
   private authUser: AuthUser;
 
-  private propagateChange = (v: any) => { };
+  private propagateChange = (_v: any) => { };
 
   constructor(private store: Store<AppState>,
               public translate: TranslateService,
@@ -118,7 +128,7 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
     }
 
     this.selectDashboardFormGroup = this.fb.group({
-      dashboard: [null]
+      dashboard: [null, this.required ? [Validators.required] : []]
     });
   }
 
@@ -126,7 +136,7 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
     this.propagateChange = fn;
   }
 
-  registerOnTouched(fn: any): void {
+  registerOnTouched(_fn: any): void {
   }
 
   ngOnInit() {
@@ -134,7 +144,7 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
       .pipe(
         debounceTime(150),
         tap(value => {
-          let modelValue;
+          let modelValue: string | DashboardInfo;
           if (typeof value === 'string' || !value) {
             modelValue = null;
           } else {
@@ -143,14 +153,9 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
           this.updateView(modelValue);
         }),
         map(value => value ? (typeof value === 'string' ? value : value.name) : ''),
-        distinctUntilChanged(),
         switchMap(name => this.fetchDashboards(name) ),
         share()
       );
-  }
-
-  ngAfterViewInit(): void {
-    // this.selectFirstDashboardIfNeeded();
   }
 
   selectFirstDashboardIfNeeded(): void {
@@ -175,6 +180,7 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
     this.disabled = isDisabled;
     if (this.disabled) {
       this.selectDashboardFormGroup.disable({emitEvent: false});
+      this.dashboardAutocomplete.closePanel();
     } else {
       this.selectDashboardFormGroup.enable({emitEvent: false});
     }
@@ -218,15 +224,13 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
 
   fetchDashboards(searchText?: string): Observable<Array<DashboardInfo>> {
     this.searchText = searchText;
-    const pageLink = new PageLink(10, 0, searchText, {
+    const pageLink = new PageLink(25, 0, searchText, {
       property: 'title',
       direction: Direction.ASC
     });
     return this.getDashboards(pageLink).pipe(
       catchError(() => of(emptyPageData<DashboardInfo>())),
-      map(pageData => {
-        return pageData.data;
-      })
+      map(pageData => pageData.data)
     );
   }
 
@@ -270,4 +274,7 @@ export class DashboardAutocompleteComponent implements ControlValueAccessor, OnI
     }, 0);
   }
 
+  textIsNotEmpty(text: string): boolean {
+    return (text && text.length > 0);
+  }
 }

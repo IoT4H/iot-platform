@@ -1,6 +1,6 @@
 <!--
 
-    Copyright © 2016-2023 The Thingsboard Authors
+    Copyright © 2016-2025 The Thingsboard Authors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.thingsboard</groupId>
-        <version>3.6.2-IOT4H.4</version>
+        <version>4.0.1</version>
         <artifactId>thingsboard</artifactId>
     </parent>
     <artifactId>msa</artifactId>
@@ -31,8 +31,7 @@
 
     <properties>
         <main.dir>${basedir}/..</main.dir>
-
-        <docker.repo>ghcr.io/iot4h</docker.repo>
+        <docker.repo>thingsboard</docker.repo>
         <dockerfile.skip>true</dockerfile.skip>
         <blackBoxTests.skip>true</blackBoxTests.skip>
         <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
@@ -43,12 +42,13 @@
         <!--Modules order is important to speedup parallel build and avoid yarn pgk parallel execution-->
         <module>tb</module>
         <module>web-ui</module>
-        <!--<module>vc-executor</module>
+        <module>vc-executor</module>
         <module>vc-executor-docker</module>
         <module>tb-node</module>
         <module>transport</module>
         <module>js-executor</module>
-        <module>monitoring</module>-->
+        <module>monitoring</module>
+        <module>edqs</module>
     </modules>
 
     <profiles>

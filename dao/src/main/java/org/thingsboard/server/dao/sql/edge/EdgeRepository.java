@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,13 @@
  */
 package org.thingsboard.server.dao.sql.edge;
 
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.thingsboard.server.common.data.edqs.fields.EdgeFields;
 import org.thingsboard.server.dao.model.sql.EdgeEntity;
 import org.thingsboard.server.dao.model.sql.EdgeInfoEntity;
 
@@ -41,6 +43,24 @@ public interface EdgeRepository extends JpaRepository<EdgeEntity, UUID> {
             "LEFT JOIN CustomerEntity c on c.id = d.customerId " +
             "WHERE d.id = :edgeId")
     EdgeInfoEntity findEdgeInfoById(@Param("edgeId") UUID edgeId);
+
+    @Query(value = "SELECT ee.id, ee.created_time, ee.additional_info, ee.customer_id, " +
+            "ee.root_rule_chain_id, ee.type, ee.name, ee.label, ee.routing_key, " +
+            "ee.secret, ee.tenant_id, ee.version " +
+            "FROM edge ee " +
+            "JOIN attribute_kv ON ee.id = attribute_kv.entity_id " +
+            "JOIN key_dictionary ON attribute_kv.attribute_key = key_dictionary.key_id " +
+            "WHERE attribute_kv.bool_v = true AND key_dictionary.key = 'active' " +
+            "AND (:textSearch IS NULL OR ee.name ILIKE CONCAT('%', :textSearch, '%')) " +
+            "ORDER BY ee.id", nativeQuery = true)
+    Page<EdgeEntity> findActiveEdges(@Param("textSearch") String textSearch,
+                                 Pageable pageable);
+
+    @Query("SELECT d.id FROM EdgeEntity d WHERE d.tenantId = :tenantId " +
+            "AND (:textSearch IS NULL OR ilike(d.name, CONCAT('%', :textSearch, '%')) = true)")
+    Page<UUID> findIdsByTenantId(@Param("tenantId") UUID tenantId,
+                                 @Param("textSearch") String textSearch,
+                                 Pageable pageable);
 
     @Query("SELECT d FROM EdgeEntity d WHERE d.tenantId = :tenantId " +
             "AND (:textSearch IS NULL OR ilike(d.name, CONCAT('%', :textSearch, '%')) = true)")
@@ -93,9 +113,9 @@ public interface EdgeRepository extends JpaRepository<EdgeEntity, UUID> {
             "AND a.customerId = :customerId " +
             "AND (:textSearch IS NULL OR ilike(a.name, CONCAT('%', :textSearch, '%')) = true)")
     Page<EdgeInfoEntity> findEdgeInfosByTenantIdAndCustomerId(@Param("tenantId") UUID tenantId,
-                                                                @Param("customerId") UUID customerId,
-                                                                @Param("textSearch") String textSearch,
-                                                                Pageable pageable);
+                                                              @Param("customerId") UUID customerId,
+                                                              @Param("textSearch") String textSearch,
+                                                              Pageable pageable);
 
     @Query("SELECT new org.thingsboard.server.dao.model.sql.EdgeInfoEntity(a, c.title, c.additionalInfo) " +
             "FROM EdgeEntity a " +
@@ -105,10 +125,10 @@ public interface EdgeRepository extends JpaRepository<EdgeEntity, UUID> {
             "AND a.type = :type " +
             "AND (:textSearch IS NULL OR ilike(a.name, CONCAT('%', :textSearch, '%')) = true)")
     Page<EdgeInfoEntity> findEdgeInfosByTenantIdAndCustomerIdAndType(@Param("tenantId") UUID tenantId,
-                                                                       @Param("customerId") UUID customerId,
-                                                                       @Param("type") String type,
-                                                                       @Param("textSearch") String textSearch,
-                                                                       Pageable pageable);
+                                                                     @Param("customerId") UUID customerId,
+                                                                     @Param("type") String type,
+                                                                     @Param("textSearch") String textSearch,
+                                                                     Pageable pageable);
 
     @Query("SELECT ee FROM EdgeEntity ee, RelationEntity re WHERE ee.tenantId = :tenantId " +
             "AND ee.id = re.fromId AND re.fromType = 'EDGE' AND re.relationTypeGroup = 'EDGE' " +
@@ -120,12 +140,25 @@ public interface EdgeRepository extends JpaRepository<EdgeEntity, UUID> {
                                                @Param("textSearch") String textSearch,
                                                Pageable pageable);
 
+    @Query("SELECT ee.id FROM EdgeEntity ee, RelationEntity re WHERE ee.tenantId = :tenantId " +
+            "AND ee.id = re.fromId AND re.fromType = 'EDGE' AND re.relationTypeGroup = 'EDGE' " +
+            "AND re.relationType = 'Contains' AND re.toId = :entityId AND re.toType = :entityType " +
+            "AND (:textSearch IS NULL OR ilike(ee.name, CONCAT('%', :textSearch, '%')) = true)")
+    Page<UUID> findIdsByTenantIdAndEntityId(@Param("tenantId") UUID tenantId,
+                                            @Param("entityId") UUID entityId,
+                                            @Param("entityType") String entityType,
+                                            @Param("textSearch") String textSearch,
+                                            Pageable pageable);
+
     @Query("SELECT ee FROM EdgeEntity ee, TenantEntity te WHERE ee.tenantId = te.id AND te.tenantProfileId = :tenantProfileId ")
     Page<EdgeEntity> findByTenantProfileId(@Param("tenantProfileId") UUID tenantProfileId,
                                            Pageable pageable);
 
     @Query("SELECT DISTINCT d.type FROM EdgeEntity d WHERE d.tenantId = :tenantId")
     List<String> findTenantEdgeTypes(@Param("tenantId") UUID tenantId);
+
+    @Query("SELECT count(*) FROM EdgeEntity e WHERE e.tenantId = :tenantId")
+    Long countByTenantId(@Param("tenantId") UUID tenantId);
 
     EdgeEntity findByTenantIdAndName(UUID tenantId, String name);
 
@@ -134,4 +167,8 @@ public interface EdgeRepository extends JpaRepository<EdgeEntity, UUID> {
     List<EdgeEntity> findEdgesByTenantIdAndIdIn(UUID tenantId, List<UUID> edgeIds);
 
     EdgeEntity findByRoutingKey(String routingKey);
+
+    @Query("SELECT new org.thingsboard.server.common.data.edqs.fields.EdgeFields(e.id, e.createdTime, e.tenantId, e.customerId," +
+            "e.name, e.version, e.type, e.label, e.additionalInfo) FROM EdgeEntity e WHERE e.id > :id ORDER BY e.id")
+    List<EdgeFields> findNextBatch(@Param("id") UUID id, Limit limit);
 }

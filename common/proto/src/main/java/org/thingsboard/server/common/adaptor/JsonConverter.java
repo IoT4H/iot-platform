@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@ import org.thingsboard.server.common.data.kv.JsonDataEntry;
 import org.thingsboard.server.common.data.kv.KvEntry;
 import org.thingsboard.server.common.data.kv.LongDataEntry;
 import org.thingsboard.server.common.data.kv.StringDataEntry;
+import org.thingsboard.server.common.data.util.TbPair;
+import org.thingsboard.server.common.msg.gateway.metrics.GatewayMetadata;
 import org.thingsboard.server.gen.transport.TransportProtos;
 import org.thingsboard.server.gen.transport.TransportProtos.AttributeUpdateNotificationMsg;
 import org.thingsboard.server.gen.transport.TransportProtos.ClaimDeviceMsg;
@@ -61,12 +63,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 public class JsonConverter {
 
     private static final Gson GSON = new Gson();
-    private static final JsonParser JSON_PARSER = new JsonParser();
     private static final String CAN_T_PARSE_VALUE = "Can't parse value: ";
     private static final String DEVICE_PROPERTY = "device";
 
@@ -82,6 +82,49 @@ public class JsonConverter {
 
     public static PostTelemetryMsg convertToTelemetryProto(JsonElement jsonElement) throws JsonSyntaxException {
         return convertToTelemetryProto(jsonElement, System.currentTimeMillis());
+    }
+
+    public static TbPair<TransportProtos.PostTelemetryMsg, List<GatewayMetadata>> convertToGatewayTelemetry(JsonElement jsonElement, long systemTs) {
+        List<GatewayMetadata> metadataResult = null;
+        PostTelemetryMsg.Builder builder = PostTelemetryMsg.newBuilder();
+        if (jsonElement.isJsonArray()) {
+            var ja = jsonElement.getAsJsonArray();
+            for (int i = 0; i < ja.size(); i++) {
+                var je = ja.get(i);
+                if (je.isJsonObject()) {
+                    JsonObject jo = je.getAsJsonObject();
+                    JsonElement metadataElem = jo.remove("metadata");
+                    if (metadataElem != null) {
+                        if (metadataResult == null) {
+                            metadataResult = new ArrayList<>();
+                        }
+                        if (metadataElem.isJsonObject()) {
+                            JsonObject metadataObj = metadataElem.getAsJsonObject();
+                            var connector = getAndValidateMetadataElement(metadataObj, "connector").getAsString();
+                            var receivedTs = getAndValidateMetadataElement(metadataObj, "receivedTs").getAsLong();
+                            var publishedTs = getAndValidateMetadataElement(metadataObj, "publishedTs").getAsLong();
+                            metadataResult.add(new GatewayMetadata(connector, receivedTs, publishedTs));
+                        } else {
+                            throw new JsonSyntaxException("Can't parse gateway metadata: " + metadataElem);
+                        }
+                    }
+                    parseObject(systemTs, null, builder, jo);
+                } else {
+                    throw new JsonSyntaxException(CAN_T_PARSE_VALUE + je);
+                }
+            }
+        } else {
+            throw new JsonSyntaxException(CAN_T_PARSE_VALUE + jsonElement);
+        }
+        return TbPair.of(builder.build(), metadataResult);
+    }
+
+    private static JsonElement getAndValidateMetadataElement(JsonObject metadata, String elementName) {
+        var element = metadata.get(elementName);
+        if (element == null || element.isJsonNull()) {
+            throw new JsonSyntaxException(String.format("Can't parse gateway element in metadata: [%s][%s]", metadata, elementName));
+        }
+        return element;
     }
 
     private static void convertToTelemetry(JsonElement jsonElement, long systemTs, Map<Long, List<KvEntry>> result, PostTelemetryMsg.Builder builder) {
@@ -111,7 +154,7 @@ public class JsonConverter {
     public static ClaimDeviceMsg convertToClaimDeviceProto(DeviceId deviceId, String json) {
         long durationMs = 0L;
         if (json != null && !json.isEmpty()) {
-            return convertToClaimDeviceProto(deviceId, JSON_PARSER.parse(json));
+            return convertToClaimDeviceProto(deviceId, JsonParser.parseString(json));
         }
         return buildClaimDeviceMsg(deviceId, DataConstants.DEFAULT_SECRET_KEY, durationMs);
     }
@@ -160,7 +203,7 @@ public class JsonConverter {
             result.addProperty("id", msg.getRequestId());
         }
         result.addProperty("method", msg.getMethodName());
-        result.add("params", JSON_PARSER.parse(msg.getParams()));
+        result.add("params", JsonParser.parseString(msg.getParams()));
         return result;
     }
 
@@ -367,7 +410,7 @@ public class JsonConverter {
                 json.addProperty(name, entry.getLongV());
                 break;
             case JSON_V:
-                json.add(name, JSON_PARSER.parse(entry.getJsonV()));
+                json.add(name, JsonParser.parseString(entry.getJsonV()));
                 break;
         }
     }
@@ -388,7 +431,7 @@ public class JsonConverter {
                     result.add(de.getKv().getKey(), new JsonPrimitive(de.getKv().getStringV()));
                     break;
                 case JSON_V:
-                    result.add(de.getKv().getKey(), JSON_PARSER.parse(de.getKv().getJsonV()));
+                    result.add(de.getKv().getKey(), JsonParser.parseString(de.getKv().getJsonV()));
                     break;
                 default:
                     throw new IllegalArgumentException("Unsupported data type: " + de.getKv().getType());
@@ -412,7 +455,7 @@ public class JsonConverter {
                     result.add(de.getKey(), new JsonPrimitive(de.getStrValue().get()));
                     break;
                 case JSON:
-                    result.add(de.getKey(), JSON_PARSER.parse(de.getJsonValue().get()));
+                    result.add(de.getKey(), JsonParser.parseString(de.getJsonValue().get()));
                     break;
                 default:
                     throw new IllegalArgumentException("Unsupported data type: " + de.getDataType());
@@ -422,7 +465,7 @@ public class JsonConverter {
 
     public static JsonElement toJson(TransportProtos.ToServerRpcResponseMsg msg) {
         if (StringUtils.isEmpty(msg.getError())) {
-            return JSON_PARSER.parse(msg.getPayload());
+            return JsonParser.parseString(msg.getPayload());
         } else {
             JsonObject errorMsg = new JsonObject();
             errorMsg.addProperty("error", msg.getError());
@@ -456,7 +499,7 @@ public class JsonConverter {
                     result.addProperty("credentialsValue", payload.getCredentialsValue());
                     break;
                 case MQTT_BASIC:
-                    result.add("credentialsValue", JSON_PARSER.parse(payload.getCredentialsValue()).getAsJsonObject());
+                    result.add("credentialsValue", JsonParser.parseString(payload.getCredentialsValue()).getAsJsonObject());
                     break;
                 case LWM2M_CREDENTIALS:
                     break;
@@ -464,6 +507,13 @@ public class JsonConverter {
             result.addProperty("credentialsType", payload.getCredentialsType().name());
             result.addProperty("status", ResponseStatus.SUCCESS.name());
         }
+        return result;
+    }
+
+    public static JsonObject toGatewayDeviceDisconnectJson(String deviceName, int reasonCode) {
+        JsonObject result = new JsonObject();
+        result.addProperty(DEVICE_PROPERTY, deviceName);
+        result.addProperty("reason", reasonCode);
         return result;
     }
 
@@ -489,10 +539,12 @@ public class JsonConverter {
     }
 
     public static Set<AttributeKvEntry> convertToAttributes(JsonElement element) {
-        Set<AttributeKvEntry> result = new HashSet<>();
         long ts = System.currentTimeMillis();
-        result.addAll(parseValues(element.getAsJsonObject()).stream().map(kv -> new BaseAttributeKvEntry(kv, ts)).collect(Collectors.toList()));
-        return result;
+        return convertToAttributes(element, ts);
+    }
+
+    public static Set<AttributeKvEntry> convertToAttributes(JsonElement element, long ts) {
+        return new HashSet<>(parseValues(element.getAsJsonObject()).stream().map(kv -> new BaseAttributeKvEntry(kv, ts)).toList());
     }
 
     private static List<KvEntry> parseValues(JsonObject valuesObject) {
@@ -572,7 +624,7 @@ public class JsonConverter {
     }
 
     public static JsonElement parse(String json) {
-        return JSON_PARSER.parse(json);
+        return JsonParser.parseString(json);
     }
 
     public static <T> T parse(String json, Class<T> clazz) {
@@ -591,16 +643,16 @@ public class JsonConverter {
         return GSON.fromJson(element, type);
     }
 
-    public static void setTypeCastEnabled(boolean enabled) {
+    static void setTypeCastEnabled(boolean enabled) {
         isTypeCastEnabled = enabled;
     }
 
-    public static void setMaxStringValueLength(int length) {
+    static void setMaxStringValueLength(int length) {
         maxStringValueLength = length;
     }
 
     public static TransportProtos.ProvisionDeviceRequestMsg convertToProvisionRequestMsg(String json) {
-        JsonElement jsonElement = JSON_PARSER.parse(json);
+        JsonElement jsonElement = JsonParser.parseString(json);
         if (jsonElement.isJsonObject()) {
             return buildProvisionRequestMsg(jsonElement.getAsJsonObject());
         } else {
@@ -629,6 +681,7 @@ public class JsonConverter {
                 .setProvisionDeviceCredentialsMsg(buildProvisionDeviceCredentialsMsg(
                         getStrValue(jo, DataConstants.PROVISION_KEY, true),
                         getStrValue(jo, DataConstants.PROVISION_SECRET, true)))
+                .setGateway(jo.has(DataConstants.GATEWAY_PARAMETER) && jo.get(DataConstants.GATEWAY_PARAMETER).getAsBoolean())
                 .build();
     }
 
@@ -650,4 +703,5 @@ public class JsonConverter {
             return "";
         }
     }
+
 }

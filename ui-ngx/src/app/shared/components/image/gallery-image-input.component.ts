@@ -1,5 +1,5 @@
 ///
-/// Copyright © 2016-2023 The Thingsboard Authors
+/// Copyright © 2016-2025 The Thingsboard Authors
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
 /// you may not use this file except in compliance with the License.
@@ -14,16 +14,7 @@
 /// limitations under the License.
 ///
 
-import {
-  ChangeDetectorRef,
-  Component,
-  forwardRef,
-  Input,
-  OnDestroy,
-  OnInit,
-  Renderer2,
-  ViewContainerRef
-} from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, forwardRef, Input, OnDestroy, OnInit } from '@angular/core';
 import { PageComponent } from '@shared/components/page.component';
 import { Store } from '@ngrx/store';
 import { AppState } from '@core/core.state';
@@ -33,12 +24,18 @@ import {
   extractParamsFromImageResourceUrl,
   ImageResourceInfo,
   isBase64DataImageUrl,
-  isImageResourceUrl, prependTbImagePrefix, removeTbImagePrefix
+  isImageResourceUrl,
+  prependTbImagePrefix,
+  removeTbImagePrefix,
+  ResourceSubType
 } from '@shared/models/resource.models';
 import { ImageService } from '@core/http/image.service';
-import { MatButton } from '@angular/material/button';
-import { TbPopoverService } from '@shared/components/popover.service';
-import { ImageGalleryComponent } from '@shared/components/image/image-gallery.component';
+import { MatDialog } from '@angular/material/dialog';
+import {
+  ImageGalleryDialogComponent,
+  ImageGalleryDialogData
+} from '@shared/components/image/image-gallery-dialog.component';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 export enum ImageLinkType {
   none = 'none',
@@ -87,15 +84,16 @@ export class GalleryImageInputComponent extends PageComponent implements OnInit,
 
   constructor(protected store: Store<AppState>,
               private imageService: ImageService,
+              private dialog: MatDialog,
               private cd: ChangeDetectorRef,
-              private renderer: Renderer2,
-              private viewContainerRef: ViewContainerRef,
-              private popoverService: TbPopoverService) {
+              private destroyRef: DestroyRef) {
     super(store);
   }
 
   ngOnInit() {
-    this.externalLinkControl.valueChanges.subscribe((value) => {
+    this.externalLinkControl.valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe((value) => {
       if (this.linkType === ImageLinkType.external) {
         this.updateModel(value);
       }
@@ -130,21 +128,26 @@ export class GalleryImageInputComponent extends PageComponent implements OnInit,
       this.detectLinkType();
       if (this.linkType === ImageLinkType.resource) {
         const params = extractParamsFromImageResourceUrl(this.imageUrl);
-        this.loadingImageResource = true;
-        this.imageService.getImageInfo(params.type, params.key, {ignoreLoading: true, ignoreErrors: true}).subscribe(
-          {
-            next: (res) => {
-              this.imageResource = res;
-              this.loadingImageResource = false;
-              this.cd.markForCheck();
-            },
-            error: () => {
-              this.reset();
-              this.loadingImageResource = false;
-              this.cd.markForCheck();
+        if (params) {
+          this.loadingImageResource = true;
+          this.imageService.getImageInfo(params.type, params.key, {ignoreLoading: true, ignoreErrors: true}).subscribe(
+            {
+              next: (res) => {
+                this.imageResource = res;
+                this.loadingImageResource = false;
+                this.cd.markForCheck();
+              },
+              error: () => {
+                this.reset();
+                this.loadingImageResource = false;
+                this.cd.markForCheck();
+              }
             }
-          }
-        );
+          );
+        } else {
+          this.reset();
+          this.cd.markForCheck();
+        }
       } else if (this.linkType === ImageLinkType.base64) {
         this.cd.markForCheck();
       } else if (this.linkType === ImageLinkType.external) {
@@ -194,32 +197,25 @@ export class GalleryImageInputComponent extends PageComponent implements OnInit,
     this.linkType = ImageLinkType.external;
   }
 
-  toggleGallery($event: Event, browseGalleryButton: MatButton) {
+  openGallery($event: Event): void {
     if ($event) {
       $event.stopPropagation();
     }
-    const trigger = browseGalleryButton._elementRef.nativeElement;
-    if (this.popoverService.hasPopover(trigger)) {
-      this.popoverService.hidePopover(trigger);
-    } else {
-      const ctx: any = {
-        pageMode: false,
-        popoverMode: true,
-        mode: 'grid',
-        selectionMode: true
-      };
-      const imageGalleryPopover = this.popoverService.displayPopover(trigger, this.renderer,
-        this.viewContainerRef, ImageGalleryComponent, 'top', true, null,
-        ctx,
-        {},
-        {}, {}, true);
-      imageGalleryPopover.tbComponentRef.instance.imageSelected.subscribe((image) => {
-        imageGalleryPopover.hide();
+    this.dialog.open<ImageGalleryDialogComponent, ImageGalleryDialogData,
+      ImageResourceInfo>(ImageGalleryDialogComponent, {
+        autoFocus: false,
+        disableClose: false,
+        panelClass: ['tb-dialog', 'tb-fullscreen-dialog'],
+        data: {
+          imageSubType: ResourceSubType.IMAGE
+        }
+    }).afterClosed().subscribe((image) => {
+      if (image) {
         this.linkType = ImageLinkType.resource;
         this.imageResource = image;
         this.updateModel(image.link);
-      });
-    }
+      }
+    });
   }
 
 }

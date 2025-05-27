@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import org.thingsboard.server.common.data.id.UserId;
 import org.thingsboard.server.common.data.security.Authority;
 import org.thingsboard.server.service.security.model.SecurityUser;
 
-@Component(value="tenantAdminPermissions")
+@Component(value = "tenantAdminPermissions")
 public class TenantAdminPermissions extends AbstractPermissions {
 
     public TenantAdminPermissions() {
@@ -50,13 +50,18 @@ public class TenantAdminPermissions extends AbstractPermissions {
         put(Resource.QUEUE, queuePermissionChecker);
         put(Resource.VERSION_CONTROL, PermissionChecker.allowAllPermissionChecker);
         put(Resource.NOTIFICATION, tenantEntityPermissionChecker);
+        put(Resource.MOBILE_APP_SETTINGS, new PermissionChecker.GenericPermissionChecker(Operation.READ));
+        put(Resource.OAUTH2_CLIENT, tenantEntityPermissionChecker);
+        put(Resource.OAUTH2_CONFIGURATION_TEMPLATE, new PermissionChecker.GenericPermissionChecker(Operation.READ));
+        put(Resource.MOBILE_APP, tenantEntityPermissionChecker);
+        put(Resource.MOBILE_APP_BUNDLE, tenantEntityPermissionChecker);
+        put(Resource.CALCULATED_FIELD, tenantEntityPermissionChecker);
     }
 
     public static final PermissionChecker tenantEntityPermissionChecker = new PermissionChecker() {
 
         @Override
         public boolean hasPermission(SecurityUser user, Operation operation, EntityId entityId, HasTenantId entity) {
-
             if (!user.getTenantId().equals(entity.getTenantId())) {
                 return false;
             }

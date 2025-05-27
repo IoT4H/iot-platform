@@ -1,5 +1,5 @@
 ///
-/// Copyright © 2016-2023 The Thingsboard Authors
+/// Copyright © 2016-2025 The Thingsboard Authors
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
 /// you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 /// limitations under the License.
 ///
 
-import { Component } from '@angular/core';
+import { Component, DestroyRef } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { AppState } from '@core/core.state';
 import { PageComponent } from '@shared/components/page.component';
@@ -23,7 +23,8 @@ import {
   AbstractControl,
   UntypedFormBuilder,
   UntypedFormControl,
-  UntypedFormGroup, ValidationErrors,
+  UntypedFormGroup,
+  ValidationErrors,
   ValidatorFn,
   Validators
 } from '@angular/forms';
@@ -35,10 +36,8 @@ import { randomAlphanumeric } from '@core/utils';
 import { AuthService } from '@core/auth/auth.service';
 import { DialogService } from '@core/services/dialog.service';
 import { TranslateService } from '@ngx-translate/core';
-import { forkJoin, Observable, of } from 'rxjs';
-import { MatCheckboxChange } from '@angular/material/checkbox';
-import { AlarmInfo } from '@shared/models/alarm.models';
-import { QueueProcessingStrategyTypes, QueueProcessingStrategyTypesMap } from '@shared/models/queue.models';
+import { Observable, of } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'tb-security-settings',
@@ -50,6 +49,8 @@ export class SecuritySettingsComponent extends PageComponent implements HasConfi
   securitySettingsFormGroup: UntypedFormGroup;
   jwtSecuritySettingsFormGroup: UntypedFormGroup;
 
+  showMainLoadingBar = false;
+
   private securitySettings: SecuritySettings;
   private jwtSettings: JwtSettings;
 
@@ -59,7 +60,8 @@ export class SecuritySettingsComponent extends PageComponent implements HasConfi
               private authService: AuthService,
               private dialogService: DialogService,
               private translate: TranslateService,
-              private fb: UntypedFormBuilder) {
+              private fb: UntypedFormBuilder,
+              private destroyRef: DestroyRef) {
     super(store);
     this.buildSecuritySettingsForm();
     this.buildJwtSecuritySettingsForm();
@@ -75,6 +77,9 @@ export class SecuritySettingsComponent extends PageComponent implements HasConfi
     this.securitySettingsFormGroup = this.fb.group({
       maxFailedLoginAttempts: [null, [Validators.min(0)]],
       userLockoutNotificationEmail: ['', []],
+      userActivationTokenTtl: [24, [Validators.required, Validators.min(1), Validators.max(24)]],
+      passwordResetTokenTtl: [24, [Validators.required, Validators.min(1), Validators.max(24)]],
+      mobileSecretKeyLength: [null, [Validators.min(1)]],
       passwordPolicy: this.fb.group(
         {
           minimumLength: [null, [Validators.required, Validators.min(6), Validators.max(50)]],
@@ -96,10 +101,12 @@ export class SecuritySettingsComponent extends PageComponent implements HasConfi
     this.jwtSecuritySettingsFormGroup = this.fb.group({
       tokenIssuer: ['', Validators.required],
       tokenSigningKey: ['', [Validators.required, this.base64Format]],
-      tokenExpirationTime: [0, [Validators.required, Validators.pattern('[0-9]*'), Validators.min(60)]],
-      refreshTokenExpTime: [0, [Validators.required, Validators.pattern('[0-9]*'), Validators.min(900)]]
+      tokenExpirationTime: [0, [Validators.required, Validators.min(60), Validators.max(2147483647)]],
+      refreshTokenExpTime: [0, [Validators.required, Validators.min(900), Validators.max(2147483647)]]
     }, {validators: this.refreshTokenTimeGreatTokenTime.bind(this)});
-    this.jwtSecuritySettingsFormGroup.get('tokenExpirationTime').valueChanges.subscribe(
+    this.jwtSecuritySettingsFormGroup.get('tokenExpirationTime').valueChanges.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(
       () => this.jwtSecuritySettingsFormGroup.get('refreshTokenExpTime').updateValueAndValidity({onlySelf: true})
     );
   }
@@ -201,7 +208,7 @@ export class SecuritySettingsComponent extends PageComponent implements HasConfi
     }
     try {
       const value = atob(control.value);
-      if (value.length < 32) {
+      if (value.length < 64) {
         return {minLength: true};
       }
       return null;

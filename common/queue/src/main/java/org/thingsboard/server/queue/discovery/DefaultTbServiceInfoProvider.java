@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package org.thingsboard.server.queue.discovery;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +28,11 @@ import org.thingsboard.server.common.data.util.CollectionsUtil;
 import org.thingsboard.server.common.msg.queue.ServiceType;
 import org.thingsboard.server.gen.transport.TransportProtos;
 import org.thingsboard.server.gen.transport.TransportProtos.ServiceInfo;
+import org.thingsboard.server.queue.edqs.EdqsConfig;
 import org.thingsboard.server.queue.util.AfterContextReady;
 
-import javax.annotation.PostConstruct;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -40,12 +40,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static org.thingsboard.common.util.SystemUtil.getCpuCount;
-import static org.thingsboard.common.util.SystemUtil.getCpuUsage;
-import static org.thingsboard.common.util.SystemUtil.getDiscSpaceUsage;
-import static org.thingsboard.common.util.SystemUtil.getMemoryUsage;
-import static org.thingsboard.common.util.SystemUtil.getTotalDiscSpace;
-import static org.thingsboard.common.util.SystemUtil.getTotalMemory;
+import static org.thingsboard.common.util.SystemUtil.*;
 
 
 @Component
@@ -65,6 +60,9 @@ public class DefaultTbServiceInfoProvider implements TbServiceInfoProvider {
     private Set<UUID> assignedTenantProfiles;
 
     @Autowired
+    private EdqsConfig edqsConfig;
+
+    @Autowired
     private ApplicationContext applicationContext;
 
     private List<ServiceType> serviceTypes;
@@ -81,15 +79,20 @@ public class DefaultTbServiceInfoProvider implements TbServiceInfoProvider {
         }
         log.info("Current Service ID: {}", serviceId);
         if (serviceType.equalsIgnoreCase("monolith")) {
-            serviceTypes = Collections.unmodifiableList(Arrays.asList(ServiceType.values()));
+            serviceTypes = List.of(ServiceType.values());
         } else {
             serviceTypes = Collections.singletonList(ServiceType.of(serviceType));
         }
         if (!serviceTypes.contains(ServiceType.TB_RULE_ENGINE) || assignedTenantProfiles == null) {
             assignedTenantProfiles = Collections.emptySet();
         }
+        if (serviceTypes.contains(ServiceType.EDQS)) {
+            if (StringUtils.isBlank(edqsConfig.getLabel())) {
+                edqsConfig.setLabel(serviceId);
+            }
+        }
 
-       generateNewServiceInfoWithCurrentSystemInfo();
+        generateNewServiceInfoWithCurrentSystemInfo();
     }
 
     @AfterContextReady
@@ -124,6 +127,7 @@ public class DefaultTbServiceInfoProvider implements TbServiceInfoProvider {
         if (CollectionsUtil.isNotEmpty(assignedTenantProfiles)) {
             builder.addAllAssignedTenantProfiles(assignedTenantProfiles.stream().map(UUID::toString).collect(Collectors.toList()));
         }
+        builder.setLabel(edqsConfig.getLabel());
         return serviceInfo = builder.build();
     }
 

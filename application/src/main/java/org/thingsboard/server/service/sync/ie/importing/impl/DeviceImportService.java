@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2023 The Thingsboard Authors
+ * Copyright © 2016-2025 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.thingsboard.server.common.data.Device;
 import org.thingsboard.server.common.data.EntityType;
-import org.thingsboard.server.common.data.User;
-import org.thingsboard.server.common.data.audit.ActionType;
-import org.thingsboard.server.common.data.exception.ThingsboardException;
 import org.thingsboard.server.common.data.id.DeviceId;
 import org.thingsboard.server.common.data.id.TenantId;
 import org.thingsboard.server.common.data.sync.ie.DeviceExportData;
@@ -67,13 +64,18 @@ public class DeviceImportService extends BaseEntityImportService<DeviceId, Devic
 
     @Override
     protected Device saveOrUpdate(EntitiesImportCtx ctx, Device device, DeviceExportData exportData, IdProvider idProvider) {
+        Device savedDevice;
         if (exportData.getCredentials() != null && ctx.isSaveCredentials()) {
             exportData.getCredentials().setId(null);
             exportData.getCredentials().setDeviceId(null);
-            return deviceService.saveDeviceWithCredentials(device, exportData.getCredentials());
+            savedDevice = deviceService.saveDeviceWithCredentials(device, exportData.getCredentials());
         } else {
-            return deviceService.saveDevice(device);
+            savedDevice = deviceService.saveDevice(device);
         }
+        if (ctx.isFinalImportAttempt() || ctx.getCurrentImportResult().isUpdatedAllExternalIds()) {
+            importCalculatedFields(ctx, savedDevice, exportData, idProvider);
+        }
+        return savedDevice;
     }
 
     @Override
@@ -90,12 +92,6 @@ public class DeviceImportService extends BaseEntityImportService<DeviceId, Devic
             }
         }
         return updated;
-    }
-
-    @Override
-    protected void onEntitySaved(User user, Device savedDevice, Device oldDevice) throws ThingsboardException {
-        entityNotificationService.notifyCreateOrUpdateDevice(user.getTenantId(), savedDevice.getId(), savedDevice.getCustomerId(),
-                savedDevice, oldDevice, oldDevice == null ? ActionType.ADDED : ActionType.UPDATED, user);
     }
 
     @Override
