@@ -15,23 +15,23 @@
     limitations under the License.
 
 -->
-<div class="tb-login-content mat-app-background tb-dark" fxFlex fxLayoutAlign="center center">
-  <mat-card appearance="raised" style="max-height: 80vh; overflow-y: auto;">
+<div class="tb-login-content mat-app-background tb-dark flex  justify-center items-center m-0" style="margin: 0px;" >
+  <mat-card appearance="raised" style="height: 100vh;width: 100vw; overflow: hidden; " class="rounded-none">
     <mat-card-content>
-      <div class="tb-login-form">
-      <div fxLayout="column">
-        <div fxLayout="column" fxLayoutAlign="start center" style="padding: 15px 0;">
-          <tb-logo class="login-logo"></tb-logo>
+      <div class="flex  justify-center items-center">
+        <div class=" flex flex-col  items-center justify-center" style="height: 100vh;width: 100vw;" >
+          <div class=" flex flex-col  content-center"  style="padding: 15px 0;">
+            <tb-logo class="login-logo"></tb-logo>
+          </div>
+          <div class=" flex flex-col content-center justify-stretch" style="padding: 15px 0;">
+            <p *ngIf="state === 'connecting'">Verbindet mit Datenplattform...</p>
+            <p *ngIf="state === 'connected'">Verbunden mit Datenplattform...</p>
+            <p *ngIf="state === 'waitingForToken'">Warte auf Login...</p>
+            <p *ngIf="state === 'loggingIn'">Login läuft...</p>
+          </div>
+          <mat-progress-bar color="warn" mode="indeterminate" class="w-full">
+          </mat-progress-bar>
         </div>
-        <div fxLayout="column" fxLayoutAlign="start center" style="padding: 15px 0;">
-          <p *ngIf="state === 'connecting'">Connecting with Portal...</p>
-          <p *ngIf="state === 'connected'">Connected with Portal...</p>
-          <p *ngIf="state === 'waitingForToken'">Waiting for Login...</p>
-          <p *ngIf="state === 'loggingIn'">Login in progress...</p>
-        </div>
-        <mat-progress-bar color="warn" mode="indeterminate">
-        </mat-progress-bar>
-      </div>
       </div>
     </mat-card-content>
   </mat-card>
