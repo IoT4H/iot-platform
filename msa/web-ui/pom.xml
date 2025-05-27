@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.thingsboard</groupId>
-        <version>4.0.1</version>
+        <version>4.0.1-IOT4H.4</version>
         <artifactId>msa</artifactId>
     </parent>
     <groupId>org.thingsboard.msa</groupId>
@@ -36,7 +36,7 @@
         <main.dir>${basedir}/../..</main.dir>
         <pkg.name>tb-web-ui</pkg.name>
         <pkg.type>js</pkg.type>
-        <docker.name>tb-web-ui</docker.name>
+        <docker.name>iot4h-web-ui</docker.name>
         <pkg.name>tb-web-ui</pkg.name>
         <pkg.type>js</pkg.type>
         <pkg.disabled>false</pkg.disabled>

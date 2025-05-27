@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.thingsboard</groupId>
-        <version>4.0.1</version>
+        <version>4.0.1-IOT4H.4</version>
         <artifactId>thingsboard</artifactId>
     </parent>
     <artifactId>msa</artifactId>
@@ -31,7 +31,8 @@
 
     <properties>
         <main.dir>${basedir}/..</main.dir>
-        <docker.repo>thingsboard</docker.repo>
+
+        <docker.repo>ghcr.io/iot4h</docker.repo>
         <dockerfile.skip>true</dockerfile.skip>
         <blackBoxTests.skip>true</blackBoxTests.skip>
         <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
@@ -42,13 +43,12 @@
         <!--Modules order is important to speedup parallel build and avoid yarn pgk parallel execution-->
         <module>tb</module>
         <module>web-ui</module>
-        <module>vc-executor</module>
+        <!--<module>vc-executor</module>
         <module>vc-executor-docker</module>
         <module>tb-node</module>
         <module>transport</module>
         <module>js-executor</module>
-        <module>monitoring</module>
-        <module>edqs</module>
+        <module>monitoring</module>-->
     </modules>
 
     <profiles>
